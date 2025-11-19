@@ -1,0 +1,39 @@
+{% load static %} <!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema Especialista - Diagnóstico</title>
+    
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
+    
+    </head>
+<body>
+    
+    <div class="container">
+        
+        <h2>Sistema de Diagnóstico (Prolog + Django)</h2>
+        <p>Digite dois sintomas (ex: febre, tosse, manchas, dor_cabeca, perda_olfato):</p>
+    
+        <form method="POST">
+            {% csrf_token %}
+            <input type="text" name="sintoma1" placeholder="Sintoma 1" value="{{ s1 }}">
+            <input type="text" name="sintoma2" placeholder="Sintoma 2" value="{{ s2 }}">
+            <button type="submit">Diagnosticar</button>
+        </form>
+    
+        {% if resultado %}
+            <div class="resultado">
+                <h3>Diagnóstico Provável:</h3>
+                <p><strong>{{ resultado|capfirst }}</strong></p>
+                <p><small>Soluções Prolog: {{ solucoes_raw }}</small></p>
+            </div>
+        {% endif %}
+    
+        {% if erro %}
+            <div class="erro">
+                <p>{{ erro }}</p>
+            </div>
+        {% endif %}
+        
+    </div> </body>
+</html>
