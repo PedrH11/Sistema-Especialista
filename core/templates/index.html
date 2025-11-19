@@ -1,31 +1,61 @@
-{% load static %} <!DOCTYPE html>
+{% load static %}
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema Especialista - Diagnóstico</title>
-    
+    <title>Sistema Especialista</title>
     <link rel="stylesheet" href="{% static 'core/style.css' %}">
-    
-    </head>
+</head>
 <body>
     
-    <div class="container">
-        
-        <h2>Sistema de Diagnóstico (Prolog + Django)</h2>
-        <p>Digite dois sintomas (ex: febre, tosse, manchas, dor_cabeca, perda_olfato):</p>
+    <div class="container" style="max-width: 700px;"> 
+        <h2>Diagnóstico Médico</h2>
+        <p style="margin-bottom: 15px; color: #666;">Selecione os sintomas que está a sentir:</p>
     
         <form method="POST">
             {% csrf_token %}
-            <input type="text" name="sintoma1" placeholder="Sintoma 1" value="{{ s1 }}">
-            <input type="text" name="sintoma2" placeholder="Sintoma 2" value="{{ s2 }}">
-            <button type="submit">Diagnosticar</button>
+            
+            <div class="grid-sintomas">
+                {% for item in sintomas_db %}
+                <label class="checkbox-item">
+                    <input type="checkbox" name="sintomas" value="{{ item.valor }}"
+                    {% if item.valor in sintomas_selecionados %}checked{% endif %}>
+                    
+                    {{ item.texto }}
+                </label>
+                {% endfor %}
+            </div>
+
+            <button type="submit" class="btn-diagnosticar" style="margin-top: 20px;">Diagnosticar</button>
         </form>
     
         {% if resultado %}
             <div class="resultado">
-                <h3>Diagnóstico Provável:</h3>
-                <p><strong>{{ resultado|capfirst }}</strong></p>
-                <p><small>Soluções Prolog: {{ solucoes_raw }}</small></p>
+                <h3>Ranking de Diagnósticos:</h3>
+                <p style="margin-bottom: 10px; font-size: 0.9em;">Baseado na soma dos pesos dos sintomas.</p>
+                
+                <ul style="list-style: none; padding: 0;">
+                    {% for item in resultado %}
+                    <li style="background: white; margin-bottom: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; border: 1px solid #ddd; flex-direction: column;">
+                        
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <span style="font-weight: bold; color: #333;">
+                                {{ item.nome }}
+                            </span>
+                            
+                            <span style="background: #007bff; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.85em;">
+                                {{ item.pontos }} pts
+                            </span>
+                        </div>
+                        
+                        {% if item.conselho %}
+                        <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #666; font-style: italic;">
+                            💡 {{ item.conselho }}
+                        </p>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
             </div>
         {% endif %}
     
@@ -35,5 +65,7 @@
             </div>
         {% endif %}
         
-    </div> </body>
+    </div>
+
+</body>
 </html>

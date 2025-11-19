@@ -25,55 +25,76 @@ except Exception as e:
 # -----------------------------------------------
 
 def consulta_view(request):
-    # Dicionário de "contexto" para enviar dados para o HTML
     context = {
-        'resultado': None,
+        'resultado': None, # Agora será uma lista de dicionários: [{'nome': 'Gripe', 'pontos': 15}, ...]
         'erro': None,
-        's1': '', # Para manter os valores nos inputs
-        's2': '',
+        'sintomas_db': [],
+        'sintomas_selecionados': []
     }
 
-    # Verifica se o motor Prolog foi carregado
     if not prolog_engine:
-        context['erro'] = "Motor Prolog não inicializado. Verifique a consola."
+        context['erro'] = "Motor Prolog não inicializado."
         return render(request, 'index.html', context)
 
-    # --- PASSO B: Processar o Formulário (se foi enviado) ---
-    if request.method == 'POST':
-        # 1. Obter os dados do formulário (dos inputs 'name="sintoma1"')
-        s1 = request.POST.get('sintoma1', '').strip().lower()
-        s2 = request.POST.get('sintoma2', '').strip().lower()
+    # --- PARTE 1: Obter a lista de TODOS os sintomas ---
+    try:
+        consulta_sintomas = list(prolog_engine.query("todos_sintomas(Lista)"))
         
-        # Guarda os valores para mostrar de volta no form
-        context['s1'] = s1
-        context['s2'] = s2
+        if consulta_sintomas:
+            lista_suja = consulta_sintomas[0]['Lista']
+            
+            # --- MELHORIA AQUI ---
+            # Vamos criar uma lista de dicionários/tuplas para facilitar no template.
+            # Formato: [ ('valor_prolog', 'Texto Bonito'), ... ]
+            sintomas_limpos = []
+            for s in lista_suja:
+                s_str = str(s)
+                # Substitui underline por espaço e coloca Iniciais Maiúsculas
+                texto_legivel = s_str.replace('_', ' ').title() 
+                sintomas_limpos.append({'valor': s_str, 'texto': texto_legivel})
+            
+            # Ordenar alfabeticamente para facilitar a busca visual
+            sintomas_limpos.sort(key=lambda x: x['texto'])
+            
+            context['sintomas_db'] = sintomas_limpos
+            
+    except Exception as e:
+        context['erro'] = f"Erro ao carregar sintomas: {e}"
 
-        if not s1 or not s2:
-            context['erro'] = "Por favor, preencha os dois sintomas."
+    # --- PARTE 2: Processar Diagnóstico ---
+    if request.method == 'POST':
+        selecionados = request.POST.getlist('sintomas')
+        context['sintomas_selecionados'] = selecionados
+
+        if not selecionados:
+             context['erro'] = "Selecione ao menos um sintoma."
         else:
             try:
-                # 2. Formatar a consulta Prolog (Ex: "diagnostico(Doenca, febre, tosse)")
-                query = f"diagnostico(Doenca, {s1}, {s2})"
+                # Formatar lista para o Prolog
+                lista_prolog_str = "[" + ",".join(selecionados) + "]"
                 
-                # 3. Executar a consulta
-                #    list() força o pyswip a encontrar todas as soluções
+                # NOVA QUERY: Pede também a variável 'Pontos'
+                query = f"diagnostico_pontuado(Doenca, {lista_prolog_str}, Pontos)"
+                
                 solucoes = list(prolog_engine.query(query))
                 
-                context['solucoes_raw'] = solucoes # Para debug
+                # Processar e ORDENAR os resultados
+                resultados_formatados = []
+                for sol in solucoes:
+                    resultados_formatados.append({
+                        'nome': sol['Doenca'].capitalize(),
+                        'pontos': sol['Pontos']
+                    })
+                
+                # Ordenar: Quem tem mais pontos aparece primeiro (reverse=True)
+                resultados_formatados.sort(key=lambda x: x['pontos'], reverse=True)
 
-                if solucoes:
-                    # 4. Formatar a resposta (Python)
-                    #    Pyswip retorna: [{'Doenca': 'gripe'}]
-                    diagnostico = solucoes[0]['Doenca']
-                    context['resultado'] = diagnostico
+                if resultados_formatados:
+                    context['resultado'] = resultados_formatados
                 else:
-                    context['erro'] = "Nenhuma doença encontrada com essa combinação."
+                    context['erro'] = "Nenhuma doença corresponde aos sintomas."
 
             except Exception as e:
-                # Captura erros de sintaxe (ex: "febre@")
-                context['erro'] = f"Sintoma inválido ou erro na consulta: {e}"
+                context['erro'] = f"Erro na inferência: {e}"
 
-    # --- PASSO C: Renderizar a Página ---
-    # Se for um GET (primeira visita) ou se for um POST (depois de processar),
-    # ele renderiza o HTML, injetando o dicionário 'context'.
     return render(request, 'index.html', context)
