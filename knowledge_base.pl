@@ -1,3 +1,4 @@
+:- encoding(utf8).
 % =========================================
 % BASE DE CONHECIMENTO PONTUADA
 % Formato: sintoma(Doenca, Sintoma, Peso).
@@ -20,28 +21,46 @@ sintoma(resfriado, tosse_leve, 5).
 sintoma(covid, febre, 5).
 sintoma(covid, tosse_seca, 8).
 sintoma(covid, falta_de_ar, 15).
-sintoma(covid, perda_olfato, 20). % Muito forte!
+sintoma(covid, perda_olfato, 20). 
 sintoma(covid, perda_paladar, 20).
 sintoma(covid, cansaco, 5).
 
 % --- Sinusite ---
 sintoma(sinusite, dor_de_cabeca, 5).
 sintoma(sinusite, congestao_nasal, 10).
-sintoma(sinusite, dor_na_face, 15). % Específico
+sintoma(sinusite, dor_na_face, 15). 
 sintoma(sinusite, coriza, 5).
 
 % --- Dengue ---
 sintoma(dengue, febre_alta, 10).
-sintoma(dengue, dor_atras_dos_olhos, 15). % Clássico
+sintoma(dengue, dor_atras_dos_olhos, 15). 
 sintoma(dengue, manchas_na_pele, 10).
 sintoma(dengue, dor_nas_juntas, 8).
 sintoma(dengue, dor_de_cabeca, 4).
 
 % --- Zika ---
 sintoma(zika, manchas_na_pele, 12).
-sintoma(zika, coceira, 15). % Coceira é forte em Zika
+sintoma(zika, coceira, 15). 
 sintoma(zika, olhos_vermelhos, 12).
 sintoma(zika, febre_baixa, 8).
+
+% =========================================
+% RECOMENDAÇÕES E CONSELHOS MÉDICOS
+% =========================================
+
+conselho(gripe, "Repouso, hidratação constante e uso de antitérmicos se houver febre alta.").
+conselho(resfriado, "Lavagem nasal com soro fisiológico e hidratação.").
+conselho(covid, "Isolamento social imediato. Monitore a saturação de oxigênio e febre.").
+conselho(sinusite, "Lavagem nasal abundante, inalação e compressas mornas no rosto.").
+conselho(rinite, "Evitar contato com poeira, ácaros e pelos de animais. Lavar o nariz.").
+
+% --- Alertas Importantes ---
+conselho(dengue, "ALERTA: Hidratação agressiva é vital. PROIBIDO usar AAS/Aspirina pelo risco de hemorragia.").
+conselho(zika, "Repouso e uso de repelente para evitar transmitir a doença a outras pessoas.").
+conselho(chikungunya, "Repouso absoluto e compressas frias nas articulações para aliviar a dor.").
+
+conselho(intoxicacao_alimentar, "Soro caseiro, dieta leve e evitar laticínios temporariamente.").
+conselho(enxaqueca, "Descanso em local escuro e silencioso. Evitar telas e luzes fortes.").
 
 % =========================================
 % REGRAS

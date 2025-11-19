@@ -1,32 +1,52 @@
-# core/views.py
 from django.shortcuts import render
 from pyswip import Prolog
-from django.conf import settings  # Para aceder ao settings.py
-import os  # Para construir caminhos de ficheiros
+from django.conf import settings
+import os
 
-# --- PASSO A: Inicialização do Motor Prolog ---
-
-# 1. Definir o caminho para a nossa base de conhecimento
-#    settings.BASE_DIR aponta para a raiz (meu_sistema_especialista/)
+# --- Inicialização do Motor (Igual ao anterior) ---
 KB_PATH = os.path.join(settings.BASE_DIR, 'knowledge_base.pl')
-
-# 2. (IMPORTANTE) Carregar o motor Prolog UMA VEZ.
-#    Fazemos isto aqui fora da view (globalmente) por performance.
-#    Assim, o Prolog não é recarregado a cada clique do utilizador.
 prolog_engine = Prolog()
+
 try:
+    # O encoding='utf-8' aqui no open ajuda em alguns sistemas, 
+    # mas o pyswip faz a leitura interna dele.
     prolog_engine.consult(KB_PATH)
-    print(f"Base de Conhecimento '{KB_PATH}' carregada com sucesso.")
+    print(f"Base '{KB_PATH}' carregada.")
 except Exception as e:
-    print(f"ERRO CRÍTICO: Não foi possível carregar '{KB_PATH}'. {e}")
-    # Se falhar, o motor não funcionará
+    print(f"ERRO: {e}")
     prolog_engine = None 
 
-# -----------------------------------------------
 
+# --- FUNÇÃO AUXILIAR PARA CONSERTAR CARACTERES ---
+def corrigir_texto(texto_cru):
+    """
+    Tenta consertar problemas de acentuação (Mojibake).
+    Ex: Transforma 'hidrataÃ§Ã£o' em 'hidratação'.
+    """
+    if texto_cru is None:
+        return ""
+        
+    # Se já vier como bytes (b'texto'), apenas decodifica
+    if isinstance(texto_cru, bytes):
+        return texto_cru.decode('utf-8', errors='ignore')
+    
+    # Se vier como string (str), tenta reverter a interpretação errada
+    if isinstance(texto_cru, str):
+        try:
+            # O erro comum é ler UTF-8 como Latin-1. Vamos inverter isso.
+            return texto_cru.encode('latin-1').decode('utf-8')
+        except:
+            # Se der erro (significa que o texto já estava certo ou é outro formato),
+            # devolve o original.
+            return texto_cru
+            
+    return str(texto_cru)
+
+
+# --- VIEW PRINCIPAL ---
 def consulta_view(request):
     context = {
-        'resultado': None, # Agora será uma lista de dicionários: [{'nome': 'Gripe', 'pontos': 15}, ...]
+        'resultado': None,
         'erro': None,
         'sintomas_db': [],
         'sintomas_selecionados': []
@@ -36,28 +56,21 @@ def consulta_view(request):
         context['erro'] = "Motor Prolog não inicializado."
         return render(request, 'index.html', context)
 
-    # --- PARTE 1: Obter a lista de TODOS os sintomas ---
+    # --- PARTE 1: Carregar Checkboxes ---
     try:
         consulta_sintomas = list(prolog_engine.query("todos_sintomas(Lista)"))
-        
         if consulta_sintomas:
             lista_suja = consulta_sintomas[0]['Lista']
-            
-            # --- MELHORIA AQUI ---
-            # Vamos criar uma lista de dicionários/tuplas para facilitar no template.
-            # Formato: [ ('valor_prolog', 'Texto Bonito'), ... ]
             sintomas_limpos = []
             for s in lista_suja:
-                s_str = str(s)
-                # Substitui underline por espaço e coloca Iniciais Maiúsculas
+                s_str = str(s) # O nome do sintoma geralmente não tem acento, mas se tiver:
+                s_str = corrigir_texto(s_str) 
+                
                 texto_legivel = s_str.replace('_', ' ').title() 
                 sintomas_limpos.append({'valor': s_str, 'texto': texto_legivel})
             
-            # Ordenar alfabeticamente para facilitar a busca visual
             sintomas_limpos.sort(key=lambda x: x['texto'])
-            
             context['sintomas_db'] = sintomas_limpos
-            
     except Exception as e:
         context['erro'] = f"Erro ao carregar sintomas: {e}"
 
@@ -70,29 +83,44 @@ def consulta_view(request):
              context['erro'] = "Selecione ao menos um sintoma."
         else:
             try:
-                # Formatar lista para o Prolog
                 lista_prolog_str = "[" + ",".join(selecionados) + "]"
-                
-                # NOVA QUERY: Pede também a variável 'Pontos'
                 query = f"diagnostico_pontuado(Doenca, {lista_prolog_str}, Pontos)"
                 
                 solucoes = list(prolog_engine.query(query))
                 
-                # Processar e ORDENAR os resultados
                 resultados_formatados = []
                 for sol in solucoes:
+                    # Corrige o nome da doença (ex: 'intoxicacao' -> se tiver acento no futuro)
+                    nome_cru = str(sol['Doenca'])
+                    
                     resultados_formatados.append({
-                        'nome': sol['Doenca'].capitalize(),
-                        'pontos': sol['Pontos']
+                        'nome': nome_cru.capitalize(),
+                        'nome_raw': nome_cru, 
+                        'pontos': sol['Pontos'],
+                        'conselho': None
                     })
                 
-                # Ordenar: Quem tem mais pontos aparece primeiro (reverse=True)
+                # Ordena do maior para o menor
                 resultados_formatados.sort(key=lambda x: x['pontos'], reverse=True)
 
+                # Busca conselho APENAS para o Vencedor (Índice 0)
                 if resultados_formatados:
+                    vencedor = resultados_formatados[0]
+                    
+                    try:
+                        q_conselho = list(prolog_engine.query(f"conselho({vencedor['nome_raw']}, X)"))
+                        if q_conselho:
+                            texto_cru = q_conselho[0]['X']
+                            # AQUI ESTÁ A MÁGICA: Usa nossa função de correção
+                            vencedor['conselho'] = corrigir_texto(texto_cru)
+                            
+                    except Exception as e:
+                        print(f"Erro conselho: {e}")
+
                     context['resultado'] = resultados_formatados
+
                 else:
-                    context['erro'] = "Nenhuma doença corresponde aos sintomas."
+                    context['erro'] = "Nenhuma doença encontrada."
 
             except Exception as e:
                 context['erro'] = f"Erro na inferência: {e}"

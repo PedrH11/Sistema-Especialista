@@ -36,22 +36,24 @@
                 
                 <ul style="list-style: none; padding: 0;">
                     {% for item in resultado %}
-                    <li style="background: white; margin-bottom: 5px; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; border: 1px solid #ddd; flex-direction: column;">
+                    <li style="background: white; margin-bottom: 10px; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; flex-direction: column; gap: 8px;">
                         
-                        <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <span style="font-weight: bold; color: #333;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <span style="font-weight: bold; font-size: 1.1rem; color: #333;">
                                 {{ item.nome }}
                             </span>
                             
-                            <span style="background: #007bff; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.85em;">
+                            <span style="background: #007bff; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.85em; font-weight: bold;">
                                 {{ item.pontos }} pts
                             </span>
                         </div>
                         
                         {% if item.conselho %}
-                        <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #666; font-style: italic;">
-                            💡 {{ item.conselho }}
-                        </p>
+                        <div style="background-color: #fff3cd; border-left: 4px solid #ffecb5; padding: 8px 12px; border-radius: 4px;">
+                            <p style="margin: 0; font-size: 0.9em; color: #856404; font-style: italic;">
+                                💡 <strong>Recomendação:</strong> {{ item.conselho }}
+                            </p>
+                        </div>
                         {% endif %}
                     </li>
                     {% endfor %}
