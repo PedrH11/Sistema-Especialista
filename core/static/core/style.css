@@ -20,7 +20,7 @@ body {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     max-width: 500px;
     width: 100%;
-    box-sizing: border-box; /* Importante para o padding não quebrar o layout */
+    box-sizing: border-box; 
 }
 
 h2 {
@@ -91,7 +91,6 @@ button:hover {
 
 .grid-sintomas {
     display: grid;
-    /* Cria colunas responsivas: cabem quantas derem (mínimo 160px cada) */
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 12px; /* Espaço entre os itens */
     margin-bottom: 20px;
@@ -129,4 +128,10 @@ button:hover {
     border-color: #0056b3;
     font-weight: 600;
     color: #0056b3;
+}
+
+@media (max-width: 700px) {
+    .comparacao-container {
+        flex-direction: column;
+    }
 }

@@ -29,35 +29,50 @@
             <button type="submit" class="btn-diagnosticar" style="margin-top: 20px;">Diagnosticar</button>
         </form>
     
-        {% if resultado %}
-            <div class="resultado">
-                <h3>Ranking de Diagnósticos:</h3>
-                <p style="margin-bottom: 10px; font-size: 0.9em;">Baseado na soma dos pesos dos sintomas.</p>
+        {% if resultado_gemini %}
+            
+            <div class="comparacao-container" style="display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap;">
                 
-                <ul style="list-style: none; padding: 0;">
-                    {% for item in resultado %}
-                    <li style="background: white; margin-bottom: 10px; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; flex-direction: column; gap: 8px;">
-                        
-                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                            <span style="font-weight: bold; font-size: 1.1rem; color: #333;">
-                                {{ item.nome }}
-                            </span>
-                            
-                            <span style="background: #007bff; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.85em; font-weight: bold;">
-                                {{ item.pontos }} pts
-                            </span>
+                <div class="coluna-resultado" style="flex: 1; min-width: 300px;">
+                    <h3 style="color: #0056b3; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">
+                        🤖 Base de Regras (Prolog)
+                    </h3>
+                    <p style="font-size: 0.85em; color: #666;">Lógica exata baseada na base de conhecimento local.</p>
+
+                    {% if resultado_prolog %}
+                        <ul style="list-style: none; padding: 0;">
+                            {% for item in resultado_prolog %}
+                            <li style="background: white; margin-bottom: 10px; padding: 15px; border-radius: 8px; border: 1px solid #cce5ff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                <div style="display: flex; justify-content: space-between; width: 100%;">
+                                    <span style="font-weight: bold; color: #333;">{{ item.nome }}</span>
+                                    <span style="background: #007bff; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.85em;">{{ item.pontos }} pts</span>
+                                </div>
+                                {% if item.conselho %}
+                                <p style="margin: 8px 0 0 0; font-size: 0.9em; color: #856404; background: #fff3cd; padding: 5px; border-radius: 4px;">
+                                    💡 {{ item.conselho }}
+                                </p>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px;">
+                            <p>O Prolog não encontrou nenhuma regra exata para estes sintomas na base local.</p>
                         </div>
-                        
-                        {% if item.conselho %}
-                        <div style="background-color: #fff3cd; border-left: 4px solid #ffecb5; padding: 8px 12px; border-radius: 4px;">
-                            <p style="margin: 0; font-size: 0.9em; color: #856404; font-style: italic;">
-                                💡 <strong>Recomendação:</strong> {{ item.conselho }}
-                            </p>
-                        </div>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
+                    {% endif %}
+                </div>
+
+                <div class="coluna-resultado" style="flex: 1; min-width: 300px;">
+                    <h3 style="color: #6f42c1; border-bottom: 2px solid #6f42c1; padding-bottom: 10px;">
+                        ✨ Inteligência Artificial (Gemini)
+                    </h3>
+                    <p style="font-size: 0.85em; color: #666;">Análise semântica baseada em redes neurais.</p>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e0cffc; box-shadow: 0 2px 4px rgba(0,0,0,0.05); line-height: 1.6;">
+                        {{ resultado_gemini|safe }}
+                    </div>
+                </div>
+
             </div>
         {% endif %}
     

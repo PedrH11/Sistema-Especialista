@@ -2,51 +2,64 @@ from django.shortcuts import render
 from pyswip import Prolog
 from django.conf import settings
 import os
+import google.generativeai as genai
+import markdown 
 
-# --- Inicialização do Motor (Igual ao anterior) ---
+# ================= CONFIGURAÇÕES =================
+# 1. Configuração do Prolog
 KB_PATH = os.path.join(settings.BASE_DIR, 'knowledge_base.pl')
 prolog_engine = Prolog()
-
 try:
-    # O encoding='utf-8' aqui no open ajuda em alguns sistemas, 
-    # mas o pyswip faz a leitura interna dele.
     prolog_engine.consult(KB_PATH)
-    print(f"Base '{KB_PATH}' carregada.")
 except Exception as e:
-    print(f"ERRO: {e}")
-    prolog_engine = None 
+    prolog_engine = None
+
+# 2. Configuração do Gemini
+GOOGLE_API_KEY = "AIzaSyAOwRiZmTJzGFIC6bCKYS3scGYqZsl2YHs" 
+genai.configure(api_key=GOOGLE_API_KEY)
 
 
-# --- FUNÇÃO AUXILIAR PARA CONSERTAR CARACTERES ---
+# ================= FUNÇÕES AUXILIARES =================
 def corrigir_texto(texto_cru):
-    """
-    Tenta consertar problemas de acentuação (Mojibake).
-    Ex: Transforma 'hidrataÃ§Ã£o' em 'hidratação'.
-    """
-    if texto_cru is None:
-        return ""
-        
-    # Se já vier como bytes (b'texto'), apenas decodifica
-    if isinstance(texto_cru, bytes):
-        return texto_cru.decode('utf-8', errors='ignore')
-    
-    # Se vier como string (str), tenta reverter a interpretação errada
+    """Corrige acentuação (Mojibake) do Prolog"""
+    if isinstance(texto_cru, bytes): return texto_cru.decode('utf-8', errors='ignore')
     if isinstance(texto_cru, str):
-        try:
-            # O erro comum é ler UTF-8 como Latin-1. Vamos inverter isso.
-            return texto_cru.encode('latin-1').decode('utf-8')
-        except:
-            # Se der erro (significa que o texto já estava certo ou é outro formato),
-            # devolve o original.
-            return texto_cru
-            
+        try: return texto_cru.encode('latin-1').decode('utf-8')
+        except: return texto_cru
     return str(texto_cru)
 
+def consultar_gemini(sintomas_lista):
+    """Envia os sintomas para o Gemini e pede um diagnóstico"""
+    chave_limpa = str(GOOGLE_API_KEY).strip()
 
-# --- VIEW PRINCIPAL ---
+    if not chave_limpa or "COLE_SUA" in chave_limpa:
+        return "⚠️ Erro: A chave API ainda não foi configurada corretamente."
+
+    try:
+        genai.configure(api_key=chave_limpa)
+        # 4. Usar o modelo 'gemini-pro' (padrão estável)
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        
+        prompt = f"""
+        Atue como um médico especialista.
+        O paciente relata: {', '.join(sintomas_lista)}.
+        
+        1. Liste 3 possíveis diagnósticos.
+        2. Dê uma justificativa para o principal.
+        3. Dê uma recomendação.
+        """
+        
+        response = model.generate_content(prompt)
+        return markdown.markdown(response.text)
+        
+    except Exception as e:
+        return f"Erro Gemini: {str(e)}"
+
+# ================= VIEW PRINCIPAL =================
 def consulta_view(request):
     context = {
-        'resultado': None,
+        'resultado_prolog': None,
+        'resultado_gemini': None, 
         'erro': None,
         'sintomas_db': [],
         'sintomas_selecionados': []
@@ -56,17 +69,15 @@ def consulta_view(request):
         context['erro'] = "Motor Prolog não inicializado."
         return render(request, 'index.html', context)
 
-    # --- PARTE 1: Carregar Checkboxes ---
+    # --- CARREGAR SINTOMAS (GET) ---
     try:
         consulta_sintomas = list(prolog_engine.query("todos_sintomas(Lista)"))
         if consulta_sintomas:
             lista_suja = consulta_sintomas[0]['Lista']
             sintomas_limpos = []
             for s in lista_suja:
-                s_str = str(s) # O nome do sintoma geralmente não tem acento, mas se tiver:
-                s_str = corrigir_texto(s_str) 
-                
-                texto_legivel = s_str.replace('_', ' ').title() 
+                s_str = str(s)
+                texto_legivel = corrigir_texto(s_str).replace('_', ' ').title()
                 sintomas_limpos.append({'valor': s_str, 'texto': texto_legivel})
             
             sintomas_limpos.sort(key=lambda x: x['texto'])
@@ -74,7 +85,7 @@ def consulta_view(request):
     except Exception as e:
         context['erro'] = f"Erro ao carregar sintomas: {e}"
 
-    # --- PARTE 2: Processar Diagnóstico ---
+    # --- PROCESSAR DIAGNÓSTICO (POST) ---
     if request.method == 'POST':
         selecionados = request.POST.getlist('sintomas')
         context['sintomas_selecionados'] = selecionados
@@ -82,47 +93,41 @@ def consulta_view(request):
         if not selecionados:
              context['erro'] = "Selecione ao menos um sintoma."
         else:
+            # 1. CONSULTA PROLOG (IA Simbólica)
             try:
                 lista_prolog_str = "[" + ",".join(selecionados) + "]"
                 query = f"diagnostico_pontuado(Doenca, {lista_prolog_str}, Pontos)"
-                
                 solucoes = list(prolog_engine.query(query))
                 
-                resultados_formatados = []
+                resultados_fmt = []
                 for sol in solucoes:
-                    # Corrige o nome da doença (ex: 'intoxicacao' -> se tiver acento no futuro)
                     nome_cru = str(sol['Doenca'])
-                    
-                    resultados_formatados.append({
+                    resultados_fmt.append({
                         'nome': nome_cru.capitalize(),
-                        'nome_raw': nome_cru, 
+                        'nome_raw': nome_cru,
                         'pontos': sol['Pontos'],
                         'conselho': None
                     })
                 
-                # Ordena do maior para o menor
-                resultados_formatados.sort(key=lambda x: x['pontos'], reverse=True)
+                resultados_fmt.sort(key=lambda x: x['pontos'], reverse=True)
 
-                # Busca conselho APENAS para o Vencedor (Índice 0)
-                if resultados_formatados:
-                    vencedor = resultados_formatados[0]
-                    
+                if resultados_fmt:
+                    vencedor = resultados_fmt[0]
                     try:
                         q_conselho = list(prolog_engine.query(f"conselho({vencedor['nome_raw']}, X)"))
                         if q_conselho:
-                            texto_cru = q_conselho[0]['X']
-                            # AQUI ESTÁ A MÁGICA: Usa nossa função de correção
-                            vencedor['conselho'] = corrigir_texto(texto_cru)
-                            
-                    except Exception as e:
-                        print(f"Erro conselho: {e}")
-
-                    context['resultado'] = resultados_formatados
-
+                            vencedor['conselho'] = corrigir_texto(q_conselho[0]['X'])
+                    except: pass
+                    
+                    context['resultado_prolog'] = resultados_fmt
                 else:
-                    context['erro'] = "Nenhuma doença encontrada."
+                    context['resultado_prolog'] = [] 
 
             except Exception as e:
-                context['erro'] = f"Erro na inferência: {e}"
+                context['erro'] = f"Erro no Prolog: {e}"
+
+            # 2. CONSULTA GEMINI (IA Generativa)
+            sintomas_legiveis = [s.replace('_', ' ') for s in selecionados]
+            context['resultado_gemini'] = consultar_gemini(sintomas_legiveis)
 
     return render(request, 'index.html', context)
