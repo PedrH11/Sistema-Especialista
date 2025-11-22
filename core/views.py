@@ -15,7 +15,7 @@ except Exception as e:
     prolog_engine = None
 
 # 2. Configuração do Gemini
-GOOGLE_API_KEY = "AIzaSyAOwRiZmTJzGFIC6bCKYS3scGYqZsl2YHs" 
+GOOGLE_API_KEY = "" # zAIzaSyAOwRiZmTJzGFIC6bCKYS3scGYqZsl2YHs
 genai.configure(api_key=GOOGLE_API_KEY)
 
 
@@ -41,12 +41,21 @@ def consultar_gemini(sintomas_lista):
         model = genai.GenerativeModel('gemini-2.5-flash-lite')
         
         prompt = f"""
-        Atue como um médico especialista.
-        O paciente relata: {', '.join(sintomas_lista)}.
+        Aja como um sistema de diagnóstico médico de precisão.
+        Entrada: {', '.join(sintomas_lista)}.
         
-        1. Liste 3 possíveis diagnósticos.
-        2. Dê uma justificativa para o principal.
-        3. Dê uma recomendação.
+        Regras de Resposta:
+        1. NÃO use introduções como "Prezado paciente" ou "Com base nos sintomas".
+        2. Vá direto para a lista de diagnósticos.
+        3. Use formatação Markdown clara.
+        
+        Saída esperada:
+        ### 1. [Nome da Doença Mais Provável]
+        * **Justificativa:** [Explicação curta e técnica]
+        * **Recomendação:** [Ação imediata]
+        
+        ### 2. [Nome da Segunda Hipótese]
+        ...
         """
         
         response = model.generate_content(prompt)
@@ -87,16 +96,25 @@ def consulta_view(request):
 
     # --- PROCESSAR DIAGNÓSTICO (POST) ---
     if request.method == 'POST':
+        # Captura Sintomas E Fatores de Risco
         selecionados = request.POST.getlist('sintomas')
+        fatores_selecionados = request.POST.getlist('fatores') # <--- NOVO
+        
         context['sintomas_selecionados'] = selecionados
+        # (Opcional) Se quiser manter os checkboxes de fatores marcados, adicione ao context também
 
         if not selecionados:
              context['erro'] = "Selecione ao menos um sintoma."
         else:
             # 1. CONSULTA PROLOG (IA Simbólica)
             try:
-                lista_prolog_str = "[" + ",".join(selecionados) + "]"
-                query = f"diagnostico_pontuado(Doenca, {lista_prolog_str}, Pontos)"
+                # Formata as listas para string do Prolog: ['item1','item2']
+                lista_sintomas_str = "[" + ",".join(selecionados) + "]"
+                lista_fatores_str = "[" + ",".join(fatores_selecionados) + "]" # <--- NOVO
+                
+                # --- MUDANÇA PRINCIPAL: Usa a regra 'diagnostico_completo' ---
+                query = f"diagnostico_completo(Doenca, {lista_sintomas_str}, {lista_fatores_str}, Pontos)"
+                
                 solucoes = list(prolog_engine.query(query))
                 
                 resultados_fmt = []
@@ -109,25 +127,45 @@ def consulta_view(request):
                         'conselho': None
                     })
                 
+                # Ordena do maior para o menor
                 resultados_fmt.sort(key=lambda x: x['pontos'], reverse=True)
 
                 if resultados_fmt:
-                    vencedor = resultados_fmt[0]
-                    try:
-                        q_conselho = list(prolog_engine.query(f"conselho({vencedor['nome_raw']}, X)"))
-                        if q_conselho:
-                            vencedor['conselho'] = corrigir_texto(q_conselho[0]['X'])
-                    except: pass
-                    
+                    # Vamos iterar sobre TODOS os resultados para dar cor a lista inteira
+                    for item in resultados_fmt:
+                        
+                        # 1. Buscar Gravidade (Padrão: rotina)
+                        item['gravidade'] = 'rotina' 
+                        try:
+                            q_grav = list(prolog_engine.query(f"gravidade({item['nome_raw']}, G)"))
+                            if q_grav:
+                                item['gravidade'] = str(q_grav[0]['G'])
+                        except: pass
+
+                        # 2. Buscar Conselho (Se for o primeiro/vencedor OU se for Emergência)
+                        # (Dica: Mostrar conselho de todos pode poluir, vamos focar no Vencedor)
+                        if item == resultados_fmt[0]: 
+                            try:
+                                q_conselho = list(prolog_engine.query(f"conselho({item['nome_raw']}, X)"))
+                                if q_conselho:
+                                    item['conselho'] = corrigir_texto(q_conselho[0]['X'])
+                            except: pass
+
                     context['resultado_prolog'] = resultados_fmt
                 else:
-                    context['resultado_prolog'] = [] 
+                    context['resultado_prolog'] = []
 
             except Exception as e:
                 context['erro'] = f"Erro no Prolog: {e}"
 
             # 2. CONSULTA GEMINI (IA Generativa)
+            # Vamos limpar os nomes e JUNTAR sintomas + fatores para o Gemini saber de tudo
             sintomas_legiveis = [s.replace('_', ' ') for s in selecionados]
-            context['resultado_gemini'] = consultar_gemini(sintomas_legiveis)
+            fatores_legiveis = [f.replace('_', ' ') for f in fatores_selecionados]
+            
+            # Cria uma lista única para o prompt da IA
+            lista_completa_ia = sintomas_legiveis + [f"(Fator: {f})" for f in fatores_legiveis]
+            
+            context['resultado_gemini'] = consultar_gemini(lista_completa_ia)
 
     return render(request, 'index.html', context)

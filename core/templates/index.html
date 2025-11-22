@@ -5,17 +5,41 @@
     <meta charset="UTF-8">
     <title>Sistema Especialista</title>
     <link rel="stylesheet" href="{% static 'core/style.css' %}">
+    
+    <style>
+        #searchBar {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+            background-repeat: no-repeat;
+            background-position: 10px center;
+            padding-left: 40px; 
+        }
+        #searchBar:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+    </style>
 </head>
 <body>
     
-    <div class="container" style="max-width: 700px;"> 
+    <div class="container" style="max-width: 800px;"> 
         <h2>Diagnóstico Médico</h2>
-        <p style="margin-bottom: 15px; color: #666;">Selecione os sintomas que está a sentir:</p>
+        
+        <p style="margin-bottom: 10px; color: #666;">Selecione os sintomas que está a sentir:</p>
     
         <form method="POST">
             {% csrf_token %}
             
-            <div class="grid-sintomas">
+            <input type="text" id="searchBar" onkeyup="filtrarSintomas()" placeholder="Pesquisar sintoma (ex: febre, dor...)">
+
+            <div class="grid-sintomas" id="gridSintomas">
                 {% for item in sintomas_db %}
                 <label class="checkbox-item">
                     <input type="checkbox" name="sintomas" value="{{ item.valor }}"
@@ -26,12 +50,37 @@
                 {% endfor %}
             </div>
 
+            <div style="margin-top: 25px; border-top: 2px dashed #eee; padding-top: 15px;">
+                <p style="margin-bottom: 10px; color: #d9534f; font-weight: bold;">
+                    Possui algum fator de risco ou contexto abaixo?
+                </p>
+                
+                <div class="grid-sintomas" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+                    <label class="checkbox-item" style="border-left: 4px solid #d9534f;">
+                        <input type="checkbox" name="fatores" value="idoso"> Idoso (+60)
+                    </label>
+                    <label class="checkbox-item" style="border-left: 4px solid #d9534f;">
+                        <input type="checkbox" name="fatores" value="fumante"> Fumante
+                    </label>
+                    <label class="checkbox-item" style="border-left: 4px solid #d9534f;">
+                        <input type="checkbox" name="fatores" value="gestante"> Gestante
+                    </label>
+                    <label class="checkbox-item" style="border-left: 4px solid #d9534f;">
+                        <input type="checkbox" name="fatores" value="area_mosquitos"> Área c/ Mosquitos
+                    </label>
+                    <label class="checkbox-item" style="border-left: 4px solid #d9534f;">
+                        <input type="checkbox" name="fatores" value="comida_suspeita"> Comida Suspeita
+                    </label>
+                    <label class="checkbox-item" style="border-left: 4px solid #d9534f;">
+                        <input type="checkbox" name="fatores" value="estresse_alto"> Estresse Alto
+                    </label>
+                </div>
+            </div>
+
             <button type="submit" class="btn-diagnosticar" style="margin-top: 20px;">Diagnosticar</button>
         </form>
     
-        {% if resultado_gemini %}
-            
-            <div class="comparacao-container" style="display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap;">
+        {% if resultado_gemini %} <div class="comparacao-container" style="display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap;">
                 
                 <div class="coluna-resultado" style="flex: 1; min-width: 300px;">
                     <h3 style="color: #0056b3; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">
@@ -42,17 +91,39 @@
                     {% if resultado_prolog %}
                         <ul style="list-style: none; padding: 0;">
                             {% for item in resultado_prolog %}
-                            <li style="background: white; margin-bottom: 10px; padding: 15px; border-radius: 8px; border: 1px solid #cce5ff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                                <div style="display: flex; justify-content: space-between; width: 100%;">
-                                    <span style="font-weight: bold; color: #333;">{{ item.nome }}</span>
-                                    <span style="background: #007bff; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.85em;">{{ item.pontos }} pts</span>
-                                </div>
-                                {% if item.conselho %}
-                                <p style="margin: 8px 0 0 0; font-size: 0.9em; color: #856404; background: #fff3cd; padding: 5px; border-radius: 4px;">
-                                    💡 {{ item.conselho }}
-                                </p>
+                            
+                                {% if item.gravidade == 'emergencia' %}
+                                    <li style="background: #fff5f5; border: 2px solid #dc3545; border-left: 8px solid #dc3545; margin-bottom: 10px; padding: 15px; border-radius: 8px;">
+                                    <div style="color: #dc3545; font-weight: bold; font-size: 0.9em; margin-bottom: 8px; text-transform: uppercase;">
+                                        🚨 Atendimento Urgente Necessário
+                                    </div>
+
+                                {% elif item.gravidade == 'atencao' %}
+                                    <li style="background: #fff9db; border: 1px solid #ffe066; border-left: 8px solid #ffe066; margin-bottom: 10px; padding: 15px; border-radius: 8px;">
+                                    <div style="color: #bfa006; font-weight: bold; font-size: 0.9em; margin-bottom: 8px; text-transform: uppercase;">
+                                        ⚠️ Requer Atenção Médica
+                                    </div>
+
+                                {% else %}
+                                    <li style="background: #f4fce3; border: 1px solid #82c91e; border-left: 8px solid #82c91e; margin-bottom: 10px; padding: 15px; border-radius: 8px;">
+                                    <div style="color: #5c940d; font-weight: bold; font-size: 0.9em; margin-bottom: 8px; text-transform: uppercase;">
+                                        ✅ Cuidados de Rotina
+                                    </div>
                                 {% endif %}
-                            </li>
+
+                                    <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                        <span style="font-weight: bold; color: #333; font-size: 1.2rem;">{{ item.nome }}</span>
+                                        <span style="background: #333; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.9em; font-weight: bold;">{{ item.pontos }} pts</span>
+                                    </div>
+                                    
+                                    {% if item.conselho %}
+                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(0,0,0,0.1);">
+                                        <p style="margin: 0; font-size: 0.95em; color: #444; font-style: italic;">
+                                            💡 {{ item.conselho }}
+                                        </p>
+                                    </div>
+                                    {% endif %}
+                                </li>
                             {% endfor %}
                         </ul>
                     {% else %}
@@ -75,14 +146,30 @@
 
             </div>
         {% endif %}
-    
+
         {% if erro %}
-            <div class="erro">
-                <p>{{ erro }}</p>
-            </div>
+            <div class="erro"><p>{{ erro }}</p></div>
         {% endif %}
         
     </div>
+
+    <script>
+        function filtrarSintomas() {
+            let input = document.getElementById('searchBar');
+            let termo = input.value.toLowerCase();
+            let container = document.getElementById('gridSintomas');
+            let items = container.getElementsByClassName('checkbox-item');
+
+            for (let i = 0; i < items.length; i++) {
+                let textoItem = items[i].innerText.toLowerCase();
+                if (textoItem.indexOf(termo) > -1) {
+                    items[i].style.display = ""; 
+                } else {
+                    items[i].style.display = "none"; 
+                }
+            }
+        }
+    </script>
 
 </body>
 </html>
