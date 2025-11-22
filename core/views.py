@@ -15,7 +15,7 @@ except Exception as e:
     prolog_engine = None
 
 # 2. Configuração do Gemini
-GOOGLE_API_KEY = "" # zAIzaSyAOwRiZmTJzGFIC6bCKYS3scGYqZsl2YHs
+GOOGLE_API_KEY = "zAIzaSyAOwRiZmTJzGFIC6bCKYS3scGYqZsl2YHs" # zAIzaSyAOwRiZmTJzGFIC6bCKYS3scGYqZsl2YHs
 genai.configure(api_key=GOOGLE_API_KEY)
 
 
@@ -37,7 +37,6 @@ def consultar_gemini(sintomas_lista):
 
     try:
         genai.configure(api_key=chave_limpa)
-        # 4. Usar o modelo 'gemini-pro' (padrão estável)
         model = genai.GenerativeModel('gemini-2.5-flash-lite')
         
         prompt = f"""
@@ -98,10 +97,9 @@ def consulta_view(request):
     if request.method == 'POST':
         # Captura Sintomas E Fatores de Risco
         selecionados = request.POST.getlist('sintomas')
-        fatores_selecionados = request.POST.getlist('fatores') # <--- NOVO
+        fatores_selecionados = request.POST.getlist('fatores') # 
         
         context['sintomas_selecionados'] = selecionados
-        # (Opcional) Se quiser manter os checkboxes de fatores marcados, adicione ao context também
 
         if not selecionados:
              context['erro'] = "Selecione ao menos um sintoma."
@@ -112,7 +110,6 @@ def consulta_view(request):
                 lista_sintomas_str = "[" + ",".join(selecionados) + "]"
                 lista_fatores_str = "[" + ",".join(fatores_selecionados) + "]" # <--- NOVO
                 
-                # --- MUDANÇA PRINCIPAL: Usa a regra 'diagnostico_completo' ---
                 query = f"diagnostico_completo(Doenca, {lista_sintomas_str}, {lista_fatores_str}, Pontos)"
                 
                 solucoes = list(prolog_engine.query(query))
@@ -131,7 +128,6 @@ def consulta_view(request):
                 resultados_fmt.sort(key=lambda x: x['pontos'], reverse=True)
 
                 if resultados_fmt:
-                    # Vamos iterar sobre TODOS os resultados para dar cor a lista inteira
                     for item in resultados_fmt:
                         
                         # 1. Buscar Gravidade (Padrão: rotina)
@@ -143,7 +139,6 @@ def consulta_view(request):
                         except: pass
 
                         # 2. Buscar Conselho (Se for o primeiro/vencedor OU se for Emergência)
-                        # (Dica: Mostrar conselho de todos pode poluir, vamos focar no Vencedor)
                         if item == resultados_fmt[0]: 
                             try:
                                 q_conselho = list(prolog_engine.query(f"conselho({item['nome_raw']}, X)"))
@@ -159,7 +154,6 @@ def consulta_view(request):
                 context['erro'] = f"Erro no Prolog: {e}"
 
             # 2. CONSULTA GEMINI (IA Generativa)
-            # Vamos limpar os nomes e JUNTAR sintomas + fatores para o Gemini saber de tudo
             sintomas_legiveis = [s.replace('_', ' ') for s in selecionados]
             fatores_legiveis = [f.replace('_', ' ') for f in fatores_selecionados]
             

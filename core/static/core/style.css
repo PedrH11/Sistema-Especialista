@@ -118,7 +118,7 @@ button:hover {
 }
 
 .checkbox-item input[type="checkbox"] {
-    transform: scale(1.2); /* Aumenta um pouco a caixinha */
+    transform: scale(1.2); 
     margin-right: 10px;
     cursor: pointer;
 }
