@@ -15,7 +15,7 @@ except Exception as e:
     prolog_engine = None
 
 # 2. Configuração do Gemini
-GOOGLE_API_KEY = "zAIzaSyAOwRiZmTJzGFIC6bCKYS3scGYqZsl2YHs" # zAIzaSyAOwRiZmTJzGFIC6bCKYS3scGYqZsl2YHs
+GOOGLE_API_KEY = "" # Insira sua chave API do Google aqui
 genai.configure(api_key=GOOGLE_API_KEY)
 
 
