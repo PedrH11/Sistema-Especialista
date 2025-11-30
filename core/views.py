@@ -106,9 +106,8 @@ def consulta_view(request):
         else:
             # 1. CONSULTA PROLOG (IA Simbólica)
             try:
-                # Formata as listas para string do Prolog: ['item1','item2']
                 lista_sintomas_str = "[" + ",".join(selecionados) + "]"
-                lista_fatores_str = "[" + ",".join(fatores_selecionados) + "]" # <--- NOVO
+                lista_fatores_str = "[" + ",".join(fatores_selecionados) + "]" 
                 
                 query = f"diagnostico_completo(Doenca, {lista_sintomas_str}, {lista_fatores_str}, Pontos)"
                 
@@ -124,7 +123,7 @@ def consulta_view(request):
                         'pontos': sol['Pontos'],
                         'conselho': None,
                         'gravidade': 'rotina',
-                        'faltantes': [] # <--- CAMPO NOVO
+                        'faltantes': [] 
                     }
 
                     # 1. Buscar Gravidade
@@ -133,33 +132,24 @@ def consulta_view(request):
                         if q_grav: item['gravidade'] = str(q_grav[0]['G'])
                     except: pass
 
-                    # 2. Buscar Conselho (Apenas para o líder da lista para não poluir)
-                    # (Faremos a verificação de "se é o primeiro" depois de ordenar)
-                    
-                    # 3. NOVO: Buscar Sintomas Faltantes (O Detetive) 🕵️‍♂️
+                    # 2. Buscar Conselho 
                     try:
-                        # Reutilizamos a string lista_sintomas_str que já criamos antes
                         q_faltantes = list(prolog_engine.query(f"sintomas_faltantes({nome_cru}, {lista_sintomas_str}, L)"))
                         if q_faltantes:
                             lista_crua = q_faltantes[0]['L']
-                            # Limpeza e formatação dos nomes
                             lista_limpa = []
                             for s in lista_crua:
-                                s_str = corrigir_texto(str(s)) # Corrige acentuação
+                                s_str = corrigir_texto(str(s))
                                 s_bonito = s_str.replace('_', ' ').title()
                                 lista_limpa.append(s_bonito)
-                            
-                            # Limitamos a mostrar no máximo 3 ou 4 faltantes para não poluir
                             item['faltantes'] = lista_limpa[:4]
                     except Exception as e:
                         print(f"Erro detetive: {e}")
 
                     resultados_fmt.append(item)
-                
-                # Ordena do maior para o menor
+
                 resultados_fmt.sort(key=lambda x: x['pontos'], reverse=True)
 
-                # Agora sim, buscamos o conselho apenas para o Vencedor (índice 0)
                 if resultados_fmt:
                     vencedor = resultados_fmt[0]
                     try:
