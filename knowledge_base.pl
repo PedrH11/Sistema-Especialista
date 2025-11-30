@@ -76,6 +76,33 @@ sintoma(gastrite, queimacao, 15).
 sintoma(gastrite, nausea, 5).
 sintoma(gastrite, perda_de_apetite, 5).
 
+% --- Infarto (EMERGÊNCIA) ---
+sintoma(infarto, dor_no_peito, 20). % Sintoma clássico
+sintoma(infarto, formigamento_braco_esquerdo, 20). % Muito específico
+sintoma(infarto, suor_frio, 15).
+sintoma(infarto, falta_de_ar, 10).
+sintoma(infarto, enjoo, 5).
+sintoma(infarto, tontura, 5).
+
+% --- AVC - Acidente Vascular Cerebral (EMERGÊNCIA) ---
+sintoma(avc, boca_torta, 25). % Altíssimo peso
+sintoma(avc, fala_enrolada, 25).
+sintoma(avc, fraqueza_um_lado_corpo, 20).
+sintoma(avc, dor_de_cabeca_subita, 10).
+sintoma(avc, confusao_mental, 15).
+
+% --- Infecção Urinária (Muito Comum) ---
+sintoma(infeccao_urinaria, ardencia_ao_urinar, 20).
+sintoma(infeccao_urinaria, vontade_frequente_urinar, 15).
+sintoma(infeccao_urinaria, urina_escura_ou_cheiro_forte, 10).
+sintoma(infeccao_urinaria, dor_no_baixo_ventre, 10).
+
+% --- Apendicite (Urgência Cirúrgica) ---
+sintoma(apendicite, dor_lado_direito_inferior_barriga, 25). % Muito específico
+sintoma(apendicite, nausea, 10).
+sintoma(apendicite, vomito, 10).
+sintoma(apendicite, febre_baixa, 5).
+sintoma(apendicite, perda_de_apetite, 5).
 
 % =========================================
 % RECOMENDAÇÕES E CONSELHOS MÉDICOS
@@ -97,6 +124,10 @@ conselho(intoxicacao_alimentar, "Soro caseiro para reidratação, dieta leve e e
 conselho(enxaqueca, "Descanso em local escuro e silencioso. Evitar telas e luzes fortes.").
 conselho(gastrite, "Evitar longos períodos em jejum, café, pimenta e alimentos ácidos.").
 
+conselho(infarto, "EMERGÊNCIA MÉDICA: Ligue 192 (SAMU) imediatamente. Se não for alérgico, mastigar uma aspirina pode ajudar enquanto espera.").
+conselho(avc, "EMERGÊNCIA MÉDICA: Ligue 192 (SAMU). Tempo é cérebro. Não dê comida ou água ao paciente.").
+conselho(infeccao_urinaria, "Marque uma consulta para exame de urina e prescrição de antibióticos. Beba muita água.").
+conselho(apendicite, "Vá ao Pronto Socorro imediatamente para avaliação cirúrgica. Não coma nada e não tome laxantes.").
 
 % =========================================
 % REGRAS
@@ -144,6 +175,27 @@ fator_risco(intoxicacao_alimentar, comida_suspeita, 30).
 fator_risco(enxaqueca, estresse_alto, 20).
 fator_risco(gastrite, estresse_alto, 15).
 
+% Fator: Hipertensão (Pressão Alta)
+fator_risco(infarto, hipertensao, 20).
+fator_risco(avc, hipertensao, 25). % Maior causa de AVC
+
+% Fator: Diabetes
+fator_risco(infarto, diabetes, 15).
+fator_risco(avc, diabetes, 10).
+fator_risco(infeccao_urinaria, diabetes, 10).
+
+% Fator: Colesterol Alto
+fator_risco(infarto, colesterol_alto, 15).
+fator_risco(avc, colesterol_alto, 10).
+
+% Fator: Fumante (Já existe, vamos adicionar as doenças novas)
+fator_risco(infarto, fumante, 20).
+fator_risco(avc, fumante, 15).
+
+% Fator: Idoso (Já existe, vamos adicionar as doenças novas)
+fator_risco(infarto, idoso, 15).
+fator_risco(avc, idoso, 15).
+fator_risco(infeccao_urinaria, idoso, 10).
 
 % --- NOVA REGRA DE DIAGNÓSTICO COMPLETO ---
 % Soma: Pontos dos Sintomas + Pontos dos Fatores de Risco
@@ -173,3 +225,20 @@ gravidade(resfriado, rotina).
 gravidade(sinusite, rotina).
 gravidade(rinite, rotina).
 gravidade(enxaqueca, rotina).
+
+gravidade(infarto, emergencia).
+gravidade(avc, emergencia).
+gravidade(apendicite, emergencia).
+
+gravidade(infeccao_urinaria, atencao).
+
+% =========================================
+% MODULO DETETIVE (ANÁLISE DE FALTANTES)
+% =========================================
+
+% Encontra sintomas da doença que NÃO estão na lista do usuário.
+sintomas_faltantes(Doenca, ListaSintomasUsuario, ListaFaltantes) :-
+    % Encontra todos os S onde:
+    % 1. S é sintoma da Doenca
+    % 2. S NÃO é membro da lista do usuário (\+ significa NOT)
+    findall(S, (sintoma(Doenca, S, _), \+ member(S, ListaSintomasUsuario)), ListaFaltantes).

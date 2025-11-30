@@ -117,35 +117,57 @@ def consulta_view(request):
                 resultados_fmt = []
                 for sol in solucoes:
                     nome_cru = str(sol['Doenca'])
-                    resultados_fmt.append({
+                    
+                    item = {
                         'nome': nome_cru.capitalize(),
                         'nome_raw': nome_cru,
                         'pontos': sol['Pontos'],
-                        'conselho': None
-                    })
+                        'conselho': None,
+                        'gravidade': 'rotina',
+                        'faltantes': [] # <--- CAMPO NOVO
+                    }
+
+                    # 1. Buscar Gravidade
+                    try:
+                        q_grav = list(prolog_engine.query(f"gravidade({nome_cru}, G)"))
+                        if q_grav: item['gravidade'] = str(q_grav[0]['G'])
+                    except: pass
+
+                    # 2. Buscar Conselho (Apenas para o líder da lista para não poluir)
+                    # (Faremos a verificação de "se é o primeiro" depois de ordenar)
+                    
+                    # 3. NOVO: Buscar Sintomas Faltantes (O Detetive) 🕵️‍♂️
+                    try:
+                        # Reutilizamos a string lista_sintomas_str que já criamos antes
+                        q_faltantes = list(prolog_engine.query(f"sintomas_faltantes({nome_cru}, {lista_sintomas_str}, L)"))
+                        if q_faltantes:
+                            lista_crua = q_faltantes[0]['L']
+                            # Limpeza e formatação dos nomes
+                            lista_limpa = []
+                            for s in lista_crua:
+                                s_str = corrigir_texto(str(s)) # Corrige acentuação
+                                s_bonito = s_str.replace('_', ' ').title()
+                                lista_limpa.append(s_bonito)
+                            
+                            # Limitamos a mostrar no máximo 3 ou 4 faltantes para não poluir
+                            item['faltantes'] = lista_limpa[:4]
+                    except Exception as e:
+                        print(f"Erro detetive: {e}")
+
+                    resultados_fmt.append(item)
                 
                 # Ordena do maior para o menor
                 resultados_fmt.sort(key=lambda x: x['pontos'], reverse=True)
 
+                # Agora sim, buscamos o conselho apenas para o Vencedor (índice 0)
                 if resultados_fmt:
-                    for item in resultados_fmt:
-                        
-                        # 1. Buscar Gravidade (Padrão: rotina)
-                        item['gravidade'] = 'rotina' 
-                        try:
-                            q_grav = list(prolog_engine.query(f"gravidade({item['nome_raw']}, G)"))
-                            if q_grav:
-                                item['gravidade'] = str(q_grav[0]['G'])
-                        except: pass
-
-                        # 2. Buscar Conselho (Se for o primeiro/vencedor OU se for Emergência)
-                        if item == resultados_fmt[0]: 
-                            try:
-                                q_conselho = list(prolog_engine.query(f"conselho({item['nome_raw']}, X)"))
-                                if q_conselho:
-                                    item['conselho'] = corrigir_texto(q_conselho[0]['X'])
-                            except: pass
-
+                    vencedor = resultados_fmt[0]
+                    try:
+                        q_conselho = list(prolog_engine.query(f"conselho({vencedor['nome_raw']}, X)"))
+                        if q_conselho:
+                            vencedor['conselho'] = corrigir_texto(q_conselho[0]['X'])
+                    except: pass
+                    
                     context['resultado_prolog'] = resultados_fmt
                 else:
                     context['resultado_prolog'] = []
